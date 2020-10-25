@@ -30,6 +30,9 @@ const (
 	DividingLineToken
 	UncompletedTaskToken
 	CompletedTaskToken
+	LinkHeadToken
+	ImageHeadToken
+	LinkBodyToken
 )
 
 var TokenTypeName = []string{
@@ -56,10 +59,13 @@ var TokenTypeName = []string{
 	"DividingLineToken",
 	"UncompletedTaskToken",
 	"CompletedTaskToken",
+	"LinkHeadToken",
+	"ImageHeadToken",
+	"LinkBodyToken",
 }
 
 type Token struct {
-	Type TokenType
+	Type  TokenType
 	Value []rune
 }
 
@@ -73,40 +79,40 @@ func Tokenize(markdown string) {
 }
 
 func nextIsSameTo(c rune) bool {
-	if pos + 1 >= len(input) {
+	if pos+1 >= len(input) {
 		return false
 	}
-	return c == input[pos + 1]
+	return c == input[pos+1]
 }
 
-func isSpaceBehind()  bool {
-	if pos + 1 >= len(input) {
+func isSpaceBehind() bool {
+	if pos+1 >= len(input) {
 		return true
 	}
-	return input[pos + 1] == ' '
+	return input[pos+1] == ' '
 }
 
 func isNumDotSpace() bool {
 	if unicode.IsDigit(input[pos]) {
-		return len(input) > pos + 2 && input[pos + 1] == '.' && input[pos + 2] == ' '
+		return len(input) > pos+2 && input[pos+1] == '.' && input[pos+2] == ' '
 	}
 	return false
 }
 
 func isTaskSymbol() (yes, completed bool) {
 	yes = false
-	if len(input) > pos + 2 && input[pos] == '[' {
-		completed = input[pos + 1] != ' '
-		if input[pos + 2] == ']' {
+	if len(input) > pos+2 && input[pos] == '[' {
+		completed = input[pos+1] != ' '
+		if input[pos+2] == ']' {
 			yes = true
 		}
 	}
 	return
 }
 
-func countSharp()  (n int) {
+func countSymbol(c rune) (n int) {
 	n = 0
-	for pos + n < len(input) && input[pos + n] == '#' {
+	for pos+n < len(input) && input[pos+n] == c {
 		n++
 	}
 	return
@@ -132,7 +138,7 @@ func NextToken() (token Token) {
 func nextToken() (textToken, otherToken Token) {
 	textToken.Type = TextToken
 	for {
-		if pos >= len(input){
+		if pos >= len(input) {
 			otherToken.Type = EofToken
 			return
 		}
@@ -140,7 +146,7 @@ func nextToken() (textToken, otherToken Token) {
 		if len(textToken.Value) == 0 && lastTokenType == NewlineToken {
 			switch c {
 			case '#':
-				n := countSharp()
+				n := countSymbol(c)
 				switch n {
 				case 2:
 					otherToken.Type = Title2Token
@@ -157,16 +163,16 @@ func nextToken() (textToken, otherToken Token) {
 				}
 				pos += n
 				if input[pos] == ' ' {
-					pos ++
+					pos++
 				}
 				return
 			case '\t':
 				otherToken.Type = TabToken
-				pos ++
+				pos++
 				return
 			case '\n':
 				otherToken.Type = NewlineToken
-				pos ++
+				pos++
 				return
 			case '-':
 				fallthrough
@@ -178,6 +184,7 @@ func nextToken() (textToken, otherToken Token) {
 					if yes {
 						pos += 2
 						if isSpaceBehind() {
+							pos += 2
 							if completed {
 								otherToken.Type = CompletedTaskToken
 							} else {
@@ -190,13 +197,13 @@ func nextToken() (textToken, otherToken Token) {
 					return
 				} else { // Consider if this is a dividing line
 					if nextIsSameTo(c) {
-						pos ++
+						pos++
 						if nextIsSameTo(c) {
-							pos ++
+							pos++
 							otherToken.Type = DividingLineToken
 							return
 						}
-						pos --
+						pos--
 					}
 				}
 			case '>':
@@ -207,18 +214,25 @@ func nextToken() (textToken, otherToken Token) {
 				}
 			case '`':
 				if nextIsSameTo(c) {
-					pos ++
+					pos++
 					if nextIsSameTo(c) {
-						pos ++
+						pos += 2
 						otherToken.Type = TripleBacktickToken
 						return
 					}
-					pos --
+					pos--
 				}
 			case '\r':
 				fallthrough
 			case ' ':
-				pos ++
+				n := countSymbol(c)
+				if n >= 2 {
+					pos += n
+					otherToken.Type = TabToken
+					return
+				} else {
+					pos++
+				}
 			}
 			if isNumDotSpace() {
 				otherToken.Type = OrderedListToken
@@ -256,14 +270,37 @@ func nextToken() (textToken, otherToken Token) {
 			}
 		case '`':
 			otherToken.Type = SingleBacktickToken
-			pos ++
+			pos++
 			return
+		case '!':
+			if nextIsSameTo('[') {
+				pos += 2
+				otherToken.Type = ImageHeadToken
+				return
+			}
+		case '[':
+			pos++
+			otherToken.Type = LinkHeadToken
+			return
+		case ']':
+			if nextIsSameTo('(') {
+				pos += 2
+				for i := pos; i < len(input) && input[i] != '\n'; i++ {
+					if input[i] == ')' {
+						otherToken.Type = LinkBodyToken
+						otherToken.Value = input[pos:i]
+						pos = i + 1
+						return
+					}
+				}
+				pos -= 2
+			}
 		case '\n':
 			otherToken.Type = NewlineToken
-			pos ++
+			pos++
 			return
 		}
-		pos ++
+		pos++
 		if c != '\r' {
 			textToken.Value = append(textToken.Value, c)
 		}

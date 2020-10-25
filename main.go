@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	markdown, err := ioutil.ReadFile("./test/test.md")
+	markdown, err := ioutil.ReadFile("./test/basic.md")
 	if err != nil {
 		log.Fatal(err)
 	}
