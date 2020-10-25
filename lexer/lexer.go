@@ -16,7 +16,7 @@ const (
 	SingleUnderscoreToken
 	DoubleUnderscoreToken
 	SingleBacktickToken
-	TripleBacktickToken
+	CodeBlockToken
 	DoubleTildeToken
 	Title1Token
 	Title2Token
@@ -45,7 +45,7 @@ var TokenTypeName = []string{
 	"SingleUnderscoreToken",
 	"DoubleUnderscoreToken",
 	"SingleBacktickToken",
-	"TripleBacktickToken",
+	"CodeBlockToken",
 	"DoubleTildeToken",
 	"Title1Token",
 	"Title2Token",
@@ -114,6 +114,21 @@ func countSymbol(c rune) (n int) {
 	n = 0
 	for pos+n < len(input) && input[pos+n] == c {
 		n++
+	}
+	return
+}
+
+func getCodeBlockStartEnd() (start, end int) {
+	start = pos
+	end = pos
+	// Skip the language name.
+	for ; start < len(input) && input[start] != '\n'; start++ {
+	}
+	start++
+	for end = start; end+2 < len(input); end++ {
+		if input[end] == '`' && input[end+1] == '`' && input[end+2] == '`' {
+			break
+		}
 	}
 	return
 }
@@ -217,7 +232,10 @@ func nextToken() (textToken, otherToken Token) {
 					pos++
 					if nextIsSameTo(c) {
 						pos += 2
-						otherToken.Type = TripleBacktickToken
+						otherToken.Type = CodeBlockToken
+						start, end := getCodeBlockStartEnd()
+						otherToken.Value = input[start:end]
+						pos = end + 3
 						return
 					}
 					pos--
