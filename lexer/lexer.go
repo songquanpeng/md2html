@@ -1,41 +1,62 @@
 package lexer
 
+import (
+	"unicode"
+)
+
 type TokenType int8
 
 const (
-	EOF_TOKEN TokenType = iota
-	TEXT_TOKEN
-	NEXT_LINE_TOKEN
-	ITALIC_STAR_LEFT_TOKEN
-	ITALIC_STAR_RIGHT_TOKEN
-	ITALIC_UNDERLINE_LEFT_TOKEN
-	ITALIC_UNDERLINE_RIGHT_TOKEN
-	BOLD_STAR_LEFT_TOKEN
-	BOLD_STAR_RIGHT_TOKEN
-	BOLD_UNDERLINE_STAR_LEFT_TOKEN
-	BOLD_UNDERLINE_STAR_RIGHT_TOKEN
-	DELETE_LEFT_TOKEN
-	DELETE_RIGHT_TOKEN
-	TITLE_1_TOKEN
-	TITLE_2_TOKEN
-	TITLE_3_TOKEN
-	TITLE_4_TOKEN
-	TITLE_5_TOKEN
-	TITLE_6_TOKEN
-	DIVIDING_LINE_TOKEN
-	INLINE_CODE_LEFT_TOKEN
-	INLINE_CODE_RIGHT_TOKEN
-	BLOCK_CODE_LEFT_TOKEN
-	BLOCK_CODE_RIGHT_TOKEN
-	TASK_UNCOMPLETED_TOKEN
-	TASK_COMPLETED_TOKEN
-	LINK_LEFT_TOKEN
-	LINK_MIDDLE_TOKEN
-	LINK_RIGHT_TOKEN
-	IMAGE_LEFT_TOKEN
-	IMAGE_MIDDLE_TOKEN
-	IMAGE_RIGHT_TOKEN
+	EofToken TokenType = iota
+	TextToken
+	NewlineToken
+	TabToken
+	SingleStarToken
+	DoubleStarToken
+	SingleUnderscoreToken
+	DoubleUnderscoreToken
+	SingleBacktickToken
+	TripleBacktickToken
+	DoubleTildeToken
+	Title1Token
+	Title2Token
+	Title3Token
+	Title4Token
+	Title5Token
+	Title6Token
+	UnorderedListToken
+	OrderedListToken
+	QuoteToken
+	DividingLineToken
+	UncompletedTaskToken
+	CompletedTaskToken
 )
+
+var TokenTypeName = []string{
+	"EofToken",
+	"TextToken",
+	"NewlineToken",
+	"TabToken",
+	"SingleStarToken",
+	"DoubleStarToken",
+	"SingleUnderscoreToken",
+	"DoubleUnderscoreToken",
+	"SingleBacktickToken",
+	"TripleBacktickToken",
+	"DoubleTildeToken",
+	"Title1Token",
+	"Title2Token",
+	"Title3Token",
+	"Title4Token",
+	"Title5Token",
+	"Title6Token",
+	"UnorderedListToken",
+	"OrderedListToken",
+	"QuoteToken",
+	"DividingLineToken",
+	"UncompletedTaskToken",
+	"CompletedTaskToken",
+}
 
 type Token struct {
 	Type TokenType
@@ -44,87 +65,207 @@ type Token struct {
 
 var input []rune
 var pos = 0
+var lastTokenType = NewlineToken
+var tokenQueue []Token
 
 func Tokenize(markdown string) {
 	input = []rune(markdown)
 }
 
+func nextIsSameTo(c rune) bool {
+	if pos + 1 >= len(input) {
+		return false
+	}
+	return c == input[pos + 1]
+}
+
+func isSpaceBehind()  bool {
+	if pos + 1 >= len(input) {
+		return true
+	}
+	return input[pos + 1] == ' '
+}
+
+func isNumDotSpace() bool {
+	if unicode.IsDigit(input[pos]) {
+		return len(input) > pos + 2 && input[pos + 1] == '.' && input[pos + 2] == ' '
+	}
+	return false
+}
+
+func isTaskSymbol() (yes, completed bool) {
+	yes = false
+	if len(input) > pos + 2 && input[pos] == '[' {
+		completed = input[pos + 1] != ' '
+		if input[pos + 2] == ']' {
+			yes = true
+		}
+	}
+	return
+}
+
+func countSharp()  (n int) {
+	n = 0
+	for pos + n < len(input) && input[pos + n] == '#' {
+		n++
+	}
+	return
+}
+
 func NextToken() (token Token) {
+	if len(tokenQueue) != 0 {
+		token = tokenQueue[0]
+		tokenQueue = tokenQueue[1:]
+	} else {
+		textToken, otherToken := nextToken()
+		if len(textToken.Value) != 0 {
+			token = textToken
+			tokenQueue = append(tokenQueue, otherToken)
+		} else {
+			token = otherToken
+		}
+		lastTokenType = otherToken.Type
+	}
+	return
+}
+
+func nextToken() (textToken, otherToken Token) {
+	textToken.Type = TextToken
 	for {
 		if pos >= len(input){
-			token.Type = EOF_TOKEN
+			otherToken.Type = EofToken
 			return
 		}
-		nextLine, generateToken := processNextLine()
-		if generateToken {
-			token.Type = NEXT_LINE_TOKEN
-			return
-		}
-		if nextLine {
-			if level := processTitle(); level != 0 {
-				if level > 0 {
-					nextLine = false
-				}
-				switch level {
-				case 1:
-					token.Type = TITLE_1_TOKEN
+		c := input[pos]
+		if len(textToken.Value) == 0 && lastTokenType == NewlineToken {
+			switch c {
+			case '#':
+				n := countSharp()
+				switch n {
 				case 2:
-					token.Type = TITLE_2_TOKEN
+					otherToken.Type = Title2Token
 				case 3:
-					token.Type = TITLE_3_TOKEN
+					otherToken.Type = Title3Token
 				case 4:
-					token.Type = TITLE_4_TOKEN
+					otherToken.Type = Title4Token
 				case 5:
-					token.Type = TITLE_5_TOKEN
+					otherToken.Type = Title5Token
+				case 6:
+					otherToken.Type = Title6Token
 				default:
-					token.Type = TITLE_6_TOKEN
+					otherToken.Type = Title1Token
+				}
+				pos += n
+				if input[pos] == ' ' {
+					pos ++
 				}
 				return
+			case '\t':
+				otherToken.Type = TabToken
+				pos ++
+				return
+			case '\n':
+				otherToken.Type = NewlineToken
+				pos ++
+				return
+			case '-':
+				fallthrough
+			case '*':
+				if isSpaceBehind() {
+					otherToken.Type = UnorderedListToken
+					pos += 2
+					yes, completed := isTaskSymbol()
+					if yes {
+						pos += 2
+						if isSpaceBehind() {
+							if completed {
+								otherToken.Type = CompletedTaskToken
+							} else {
+								otherToken.Type = UncompletedTaskToken
+							}
+							return
+						}
+						pos -= 2
+					}
+					return
+				} else { // Consider if this is a dividing line
+					if nextIsSameTo(c) {
+						pos ++
+						if nextIsSameTo(c) {
+							pos ++
+							otherToken.Type = DividingLineToken
+							return
+						}
+						pos --
+					}
+				}
+			case '>':
+				if isSpaceBehind() {
+					otherToken.Type = QuoteToken
+					pos += 2
+					return
+				}
+			case '`':
+				if nextIsSameTo(c) {
+					pos ++
+					if nextIsSameTo(c) {
+						pos ++
+						otherToken.Type = TripleBacktickToken
+						return
+					}
+					pos --
+				}
+			case '\r':
+				fallthrough
+			case ' ':
+				pos ++
 			}
-			if processDividingLine() {
-				token.Type = DIVIDING_LINE_TOKEN
+			if isNumDotSpace() {
+				otherToken.Type = OrderedListToken
 				return
 			}
 		}
-	}
-}
+		// Update c because pos maybe updated due to black symbol.
+		c = input[pos]
 
-func processNextLine() (nextLine, generateToken bool){
-	nextLine = false
-	generateToken = false
-	if input[pos] == '\n' {
-		nextLine = true
-		pos++
-		for pos < len(input) && input[pos] == '\n' {
-			generateToken = true
-			pos++
+		// Now we have to return the text token before the below token.
+		switch c {
+		case '*':
+			if nextIsSameTo(c) {
+				pos += 2
+				otherToken.Type = DoubleStarToken
+			} else {
+				pos += 1
+				otherToken.Type = SingleStarToken
+			}
+			return
+		case '_':
+			if nextIsSameTo(c) {
+				pos += 2
+				otherToken.Type = DoubleUnderscoreToken
+			} else {
+				pos += 1
+				otherToken.Type = SingleUnderscoreToken
+			}
+			return
+		case '~':
+			if nextIsSameTo(c) {
+				pos += 2
+				otherToken.Type = DoubleTildeToken
+				return
+			}
+		case '`':
+			otherToken.Type = SingleBacktickToken
+			pos ++
+			return
+		case '\n':
+			otherToken.Type = NewlineToken
+			pos ++
+			return
+		}
+		pos ++
+		if c != '\r' {
+			textToken.Value = append(textToken.Value, c)
 		}
 	}
-	return
-}
-
-func processTitle()  (level int8) {
-	level = 0
-	for pos < len(input) && input[pos] == '#' {
-		level++
-	}
-	return
-}
-
-func processText()  {
-
-}
-
-func processDividingLine() (yes bool){
-	yes = false
-	oldPos := pos
-	for pos < len(input) && input[pos] == '-' {
-		pos++
-	}
-	if pos < len(input) && input[pos] == '\n' {
-		yes = true
-	} else {
-		pos = oldPos
-	}
-	return
 }
