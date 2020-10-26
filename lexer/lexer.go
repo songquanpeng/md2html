@@ -18,12 +18,7 @@ const (
 	SingleBacktickToken
 	CodeBlockToken
 	DoubleTildeToken
-	Title1Token
-	Title2Token
-	Title3Token
-	Title4Token
-	Title5Token
-	Title6Token
+	TitleToken
 	UnorderedListToken
 	OrderedListToken
 	QuoteToken
@@ -47,12 +42,7 @@ var TokenTypeName = []string{
 	"SingleBacktickToken",
 	"CodeBlockToken",
 	"DoubleTildeToken",
-	"Title1Token",
-	"Title2Token",
-	"Title3Token",
-	"Title4Token",
-	"Title5Token",
-	"Title6Token",
+	"TitleToken",
 	"UnorderedListToken",
 	"OrderedListToken",
 	"QuoteToken",
@@ -162,20 +152,8 @@ func nextToken() (textToken, otherToken Token) {
 			switch c {
 			case '#':
 				n := countSymbol(c)
-				switch n {
-				case 2:
-					otherToken.Type = Title2Token
-				case 3:
-					otherToken.Type = Title3Token
-				case 4:
-					otherToken.Type = Title4Token
-				case 5:
-					otherToken.Type = Title5Token
-				case 6:
-					otherToken.Type = Title6Token
-				default:
-					otherToken.Type = Title1Token
-				}
+				otherToken.Type = TitleToken
+				otherToken.Value = append(otherToken.Value, rune(n))
 				pos += n
 				if input[pos] == ' ' {
 					pos++
@@ -266,28 +244,34 @@ func nextToken() (textToken, otherToken Token) {
 			if nextIsSameTo(c) {
 				pos += 2
 				otherToken.Type = DoubleStarToken
+				otherToken.Value = []rune("**")
 			} else {
 				pos += 1
 				otherToken.Type = SingleStarToken
+				otherToken.Value = []rune("*")
 			}
 			return
 		case '_':
 			if nextIsSameTo(c) {
 				pos += 2
 				otherToken.Type = DoubleUnderscoreToken
+				otherToken.Value = []rune("__")
 			} else {
 				pos += 1
 				otherToken.Type = SingleUnderscoreToken
+				otherToken.Value = []rune("_")
 			}
 			return
 		case '~':
 			if nextIsSameTo(c) {
 				pos += 2
 				otherToken.Type = DoubleTildeToken
+				otherToken.Value = []rune("~~")
 				return
 			}
 		case '`':
 			otherToken.Type = SingleBacktickToken
+			otherToken.Value = []rune("`")
 			pos++
 			return
 		case '!':
