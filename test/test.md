@@ -1,2 +1,3 @@
-首先，这个[博客](https://iamazing.cn/) 就是用 Node.js & Express.js 开发的，代码在此处：https://github.com/songquanpeng/express-react-blog ，
-你可以拿来做参考，~~强烈建议 star~~。
+1. `req`：request，请求信息，这个是一个 JavaScript 对象，你可以打印出来看一下的，之后我们处理表单时，或者获取 url 参数的时候，数据就是从这个 req 对象里取的。
+2. `res`：response，这个就是返回对象，我们可以调用它的一些方法，例如这里调用的是 `res.render('index', { title: 'Express' });`，告诉 Express 渲染 `/views/` 文件夹下的模板 `index.ejs`，并把渲染的结果返回给用户。
+3. `next`：这是一个函数，当我们不想在当前函数中处理请求的话可以调用 `next()` 让后面的匹配的函数进行处理，不理解没关系，我们这里用不到。

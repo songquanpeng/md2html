@@ -3,6 +3,7 @@ package converter
 import (
 	"fmt"
 	"md2html/parser"
+	"strings"
 )
 
 var htmlTemplate = `<html>
@@ -20,7 +21,7 @@ max-width: 750px;
 
 func Convert(markdown string, fullPage bool) (html string) {
 	ast := parser.Parse(markdown)
-	parser.PrintAST(ast)
+	//parser.PrintAST(ast)
 	html = processArticleNode(ast)
 	if fullPage {
 		html = fmt.Sprintf(htmlTemplate, html)
@@ -90,7 +91,49 @@ func processContentNode(node *parser.Node) (html string) {
 }
 
 func processListNode(node *parser.Node) (html string) {
+	if len(node.Children) == 0 {
+		return
+	}
+	if int(node.Children[0].Value[0])%2 == 0 {
+		// unordered list
+		html = "<ul>%s</ul>"
+	} else {
+		html = "<ol>%s</ol>"
+	}
+	content := ""
+	for _, child := range node.Children {
+		content += processSubListNode(child)
+	}
+	html = fmt.Sprintf(html, content)
+	return
+}
 
+func processSubListNode(node *parser.Node) (html string) {
+	content := processContentNode(node.Children[0])
+	i := strings.Index(content, ". ")
+	if i >= 0 && i < 5 {
+		i += 2
+		content = content[i:]
+	}
+	inputTag := ""
+	if int(node.Value[0]) == 2 {
+		inputTag = "<input disabled type='checkbox'>"
+	} else if int(node.Value[0]) == 3 {
+		inputTag = "<input checked disabled type='checkbox'>"
+	}
+	subListContent := ""
+	if len(node.Children) > 1 {
+		subList := ""
+		if int(node.Children[1].Value[0])%2 == 0 {
+			subList = "<ul>%s</ul>"
+		} else {
+			subList = "<ol>%s</ol>"
+		}
+		for _, child := range node.Children[1:] {
+			subListContent += fmt.Sprintf(subList, processSubListNode(child))
+		}
+	}
+	html += fmt.Sprintf("<li>%s%s%s</li>", inputTag, content, subListContent)
 	return
 }
 

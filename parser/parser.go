@@ -73,6 +73,8 @@ func (node Node) String() (str string) {
 			str += "Uncompleted Task"
 		case 3:
 			str += "Completed Task"
+		case -1:
+			str += "Placeholder List"
 		}
 		str += fmt.Sprintf(" (level %d)", int(node.Value[1]))
 	}
@@ -170,6 +172,31 @@ func preprocessAST(root *Node) {
 				processListNode(target)
 				i = end - 1
 			}
+		}
+	}
+	root.Children = newChildren
+	// Then we have to combine those list items.
+	combineListNode(root)
+}
+
+func combineListNode(root *Node) {
+	var newChildren []*Node
+	var current *Node
+	for i := 0; i < len(root.Children); i++ {
+		if root.Children[i].Type == ListNode {
+			if current == nil {
+				current = &Node{
+					Type:     ListNode,
+					Value:    nil,
+					Children: nil,
+				}
+				current.Value = append(current.Value, rune(-1), rune(0))
+				newChildren = append(newChildren, current)
+			}
+			current.Children = append(current.Children, root.Children[i])
+		} else {
+			newChildren = append(newChildren, root.Children[i])
+			current = nil
 		}
 	}
 	root.Children = newChildren
@@ -434,7 +461,7 @@ func parseList() (root *Node) {
 	default:
 		log.Println("Warning: unexpected token detected when processing list.")
 	}
-	listLevel := tabCounter
+	listLevel := tabCounter + 1
 	tabCounter = 0
 	root.Value = append(root.Value, rune(listType), rune(listLevel))
 	// The first child of a list node is its content.
