@@ -159,6 +159,9 @@ func preprocessAST(root *Node) {
 					} else {
 						end = j + 1
 					}
+				} else {
+					end = j
+					break
 				}
 
 			}

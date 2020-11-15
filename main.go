@@ -3,8 +3,10 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"md2html/parser"
+	"md2html/converter"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -14,9 +16,18 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("Converting file %q.", file)
-		root := parser.Parse(string(markdown))
-		parser.PrintAST(root)
-
-		log.Printf("Converted file saved at %q.", file)
+		html := converter.Convert(string(markdown), true)
+		convertedFilename := strings.TrimSuffix(file, filepath.Ext(file))
+		convertedFilename += ".html"
+		convertedFile, err := os.Create(convertedFilename)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = convertedFile.WriteString(html)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_ = convertedFile.Close()
+		log.Printf("Converted file saved at %q.", convertedFilename)
 	}
 }
