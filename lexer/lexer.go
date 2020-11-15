@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"unicode"
 )
 
@@ -307,4 +308,8 @@ func nextToken() (textToken, otherToken Token) {
 			textToken.Value = append(textToken.Value, c)
 		}
 	}
+}
+
+func PrintToken(token Token) {
+	fmt.Printf("<%s, %q>\n", TokenTypeName[token.Type], string(token.Value))
 }

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+	"github.com/disiqueira/gotree"
 	"log"
 	"md2html/lexer"
 )
@@ -25,11 +27,32 @@ const (
 	ImageNode
 )
 
+var NodeTypeName = []string{
+	"ArticleNode",
+	"NoneNode",
+	"ContentNode",
+	"TextNode",
+	"TitleNode",
+	"DividingLineNode",
+	"QuoteNode",
+	"CodeBlockNode",
+	"ListNode",
+	"ItalicNode",
+	"BoldNode",
+	"InlineCodeNode",
+	"StrikethroughNode",
+	"LinkNode",
+	"ImageNode",
+}
+
 type Node struct {
 	Type     NodeType
 	Value    []rune
-	children [3]*Node
-	Next     *Node
+	Children []*Node
+}
+
+func (node Node) String() string {
+	return NodeTypeName[node.Type]
 }
 
 var tokenBuffer []lexer.Token
@@ -38,6 +61,7 @@ var pos = 0
 func getToken() (token lexer.Token) {
 	if pos == len(tokenBuffer) {
 		// Noting in the buffer or all tokens are used.
+		pos++
 		token = lexer.NextToken()
 		tokenBuffer = append(tokenBuffer, token)
 	} else {
@@ -49,10 +73,13 @@ func getToken() (token lexer.Token) {
 		tokenBuffer = tokenBuffer[1:]
 		pos--
 	}
+	//fmt.Printf("getToken() called with token ")
+	//lexer.PrintToken(token)
 	return
 }
 
 func restoreToken() {
+	//fmt.Printf("restoreToken() called.\n")
 	if pos == 0 {
 		log.Println("Warning: nothing to restore!")
 	} else {
@@ -60,7 +87,23 @@ func restoreToken() {
 	}
 }
 
-func Parse() (root *Node) {
+func PrintAST(root *Node) {
+	tree := gotree.New("Root")
+	printASTHelper(root, &tree)
+	fmt.Println(tree.Print())
+}
+
+func printASTHelper(astNode *Node, treeNode *gotree.Tree) {
+	if astNode != nil {
+		for _, child := range astNode.Children {
+			subTree := (*treeNode).Add((*child).String())
+			printASTHelper(child, &subTree)
+		}
+	}
+}
+
+func Parse(markdown string) (root *Node) {
+	lexer.Tokenize(markdown)
 	root = parseArticle()
 	return
 }
@@ -71,17 +114,21 @@ func parseArticle() (root *Node) {
 }
 
 func parseSectionList() (root *Node) {
-	current := root
-	token := getToken()
-	restoreToken()
+	node := Node{}
+	root = &node
 	for {
+		token := getToken()
+		restoreToken()
+		current := &Node{}
+		//fmt.Printf("for loop start, current token: ")
+		//lexer.PrintToken(token)
 		switch token.Type {
 		case lexer.TitleToken:
-			current.Next = parseTitle()
+			current = parseTitle()
 		case lexer.DividingLineToken:
-			current.Next = parseDividingLine()
+			current = parseDividingLine()
 		case lexer.CodeBlockToken:
-			current.Next = parseCodeBlock()
+			current = parseCodeBlock()
 		case lexer.UncompletedTaskToken:
 			fallthrough
 		case lexer.CompletedTaskToken:
@@ -89,9 +136,9 @@ func parseSectionList() (root *Node) {
 		case lexer.UnorderedListToken:
 			fallthrough
 		case lexer.OrderedListToken:
-			current.Next = parseList()
+			current = parseList()
 		case lexer.QuoteToken:
-			current.Next = parseQuote()
+			current = parseQuote()
 		case lexer.NewlineToken:
 			_ = getToken()
 			token = getToken()
@@ -106,11 +153,9 @@ func parseSectionList() (root *Node) {
 		case lexer.EofToken:
 			return
 		default:
-			current.Next = parseContent()
+			current = parseContent()
 		}
-		if current.Next != nil {
-			current = current.Next
-		}
+		root.Children = append(root.Children, current)
 	}
 }
 
@@ -123,7 +168,7 @@ func parseTitle() (root *Node) {
 	root = &node
 	root.Type = TitleNode
 	root.Value = token.Value
-	root.Next = parseContent()
+	root.Children = append(root.Children, parseContent())
 	return
 }
 
@@ -139,26 +184,26 @@ func parseDividingLine() (root *Node) {
 }
 
 func parseContent() (root *Node) {
-	// Markdown is not a CFG language.
-	node := Node{}
-	root = &node
-	root.Type = ContentNode
 	// First we should retrieve all the tokens this content node need.
 	var tokens []lexer.Token
 	for token := getToken(); token.Type != lexer.NewlineToken && token.Type != lexer.EofToken; token = getToken() {
 		tokens = append(tokens, token)
 	}
-	current := root
-	l := len(tokens)
+	return constructContentNode(0, len(tokens)-1, &tokens)
+}
+
+func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
+	node := Node{}
+	root = &node
+	root.Type = ContentNode
 	if tokens == nil {
 		log.Println("Warning: content node is blank!")
 		return
 	}
-
 	// return -1 if not found, do not check the start point
 	findThisTypeToken := func(t lexer.TokenType, start int) (pos int) {
-		for pos = start + 1; pos < len(tokens); pos++ {
-			if tokens[pos].Type == t {
+		for pos = start + 1; pos < len(*tokens); pos++ {
+			if (*tokens)[pos].Type == t {
 				return pos
 			}
 		}
@@ -166,34 +211,69 @@ func parseContent() (root *Node) {
 		return
 	}
 
-	for i := 0; i < l; i++ {
-		switch tokens[i].Type {
+	getNodeTypeBySymToken := func(token lexer.Token) (nodeType NodeType) {
+		switch token.Type {
+		case lexer.SingleStarToken:
+			fallthrough
+		case lexer.SingleUnderscoreToken:
+			nodeType = ItalicNode
+		case lexer.DoubleStarToken:
+			fallthrough
+		case lexer.DoubleUnderscoreToken:
+			nodeType = BoldNode
+		case lexer.SingleBacktickToken:
+			nodeType = InlineCodeNode
+		case lexer.DoubleTildeToken:
+			nodeType = StrikethroughNode
+		default:
+			nodeType = TextNode
+		}
+		return
+	}
+	for i := start; i <= end; i++ {
+		current := &Node{}
+		switch (*tokens)[i].Type {
 		case lexer.TextToken:
 			node := Node{}
 			current = &node
 			node.Type = TextNode
-			node.Value = tokens[i].Value
-			current = current.Next
+			node.Value = (*tokens)[i].Value
+		case lexer.DoubleStarToken:
+			fallthrough
+		case lexer.DoubleUnderscoreToken:
+			fallthrough
 		case lexer.SingleStarToken:
-			pos := findThisTypeToken(tokens[i].Type, i)
+			fallthrough
+		case lexer.SingleUnderscoreToken:
+			fallthrough
+		case lexer.SingleBacktickToken:
+			fallthrough
+		case lexer.DoubleTildeToken:
+			pos := findThisTypeToken((*tokens)[i].Type, i)
 			if pos == -1 {
 				// Not paired, change its type.
-				tokens[i].Type = lexer.TextToken
+				(*tokens)[i].Type = lexer.TextToken
 				// And rerun this cycle.
 				i--
 				continue
 			} else {
-				// TODO: checkpoint
+				// Paired
+				current = constructRichTextNode(i, pos, tokens, getNodeTypeBySymToken((*tokens)[i]))
+				// Don't forget to update i
+				i = pos
+				continue
 			}
-		case lexer.SingleUnderscoreToken:
-
 		}
-
+		root.Children = append(root.Children, current)
 	}
+	return
+}
 
-	root.children[0] = parseText()
-	root.children[1] = parseRichText()
-	root.children[2] = parseText()
+func constructRichTextNode(start, end int, tokens *[]lexer.Token, nodeType NodeType) (root *Node) {
+	node := Node{}
+	root = &node
+	root.Type = nodeType
+	root.Children[0] = constructContentNode(start+1, end-1, tokens)
 	return
 }
 
@@ -208,54 +288,6 @@ func parseText() (root *Node) {
 	} else {
 		root.Value = token.Value
 	}
-	return
-}
-
-// If the next token is not a valid rich text token, this function will return a nil.
-func parseRichText() (root *Node) {
-	token := getToken()
-	restoreToken()
-	switch token.Type {
-	case lexer.SingleStarToken:
-		fallthrough
-	case lexer.SingleUnderscoreToken:
-		parseItalic()
-	case lexer.DoubleStarToken:
-		fallthrough
-	case lexer.DoubleUnderscoreToken:
-		parseBold()
-	case lexer.DoubleTildeToken:
-		parseStrikeThrough()
-	case lexer.LinkHeadToken:
-		parseLink()
-	case lexer.ImageHeadToken:
-		parseImage()
-	case lexer.SingleBacktickToken:
-		parseInlineCode()
-	}
-}
-
-func parseItalic() (root *Node) {
-	node := Node{}
-	root = &node
-	return
-}
-
-func parseBold() (root *Node) {
-	node := Node{}
-	root = &node
-	return
-}
-
-func parseInlineCode() (root *Node) {
-	node := Node{}
-	root = &node
-	return
-}
-
-func parseStrikeThrough() (root *Node) {
-	node := Node{}
-	root = &node
 	return
 }
 
@@ -284,7 +316,7 @@ func parseQuote() (root *Node) {
 	node := Node{}
 	root = &node
 	root.Type = QuoteNode
-	root.Next = parseContent()
+	root.Children = append(root.Children, parseContent())
 	return
 }
 
@@ -298,7 +330,7 @@ func parseList() (root *Node) {
 	root = &node
 	root.Type = ListNode
 	root.Value = []rune(lexer.TokenTypeName[token.Type])
-	root.Next = parseContent()
+	root.Children = append(root.Children, parseContent())
 	return
 }
 
