@@ -49,3 +49,24 @@ func TestTokenizeDividingLine(t *testing.T) {
 		t.Errorf("There should be %d tokens", expectedTokenNum)
 	}
 }
+
+const markdown3 = `
+This is my [website](https://justsong.cn).
+My avatar: ![alt text](https://justsong.cn/favicon.ico)
+`
+
+func TestTokenizeLinkAndImage(t *testing.T) {
+	Tokenize(markdown3)
+	n := 0
+	for ; true; n++ {
+		token := NextToken()
+		//fmt.Printf("%d: <%s, %q>\n", n, TokenTypeName[token.Type], string(token.Value))
+		if token.Type == EofToken {
+			break
+		}
+	}
+	expectedTokenNum := 12
+	if n != expectedTokenNum {
+		t.Errorf("There should be %d tokens", expectedTokenNum)
+	}
+}

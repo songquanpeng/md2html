@@ -10,8 +10,8 @@ import (
 type NodeType int8
 
 const (
-	ArticleNode NodeType = iota
-	NoneNode
+	NoneNode NodeType = iota
+	ArticleNode
 	ContentNode
 	TextNode
 	TitleNode
@@ -28,8 +28,8 @@ const (
 )
 
 var NodeTypeName = []string{
-	"ArticleNode",
 	"NoneNode",
+	"ArticleNode",
 	"ContentNode",
 	"TextNode",
 	"TitleNode",
@@ -58,6 +58,10 @@ func (node Node) String() (str string) {
 		str += fmt.Sprintf(": %q", string(node.Value))
 	case TitleNode:
 		str += fmt.Sprintf(": %d", node.Value[0])
+	case ImageNode:
+		fallthrough
+	case LinkNode:
+		str += fmt.Sprintf(": %s", string(node.Value))
 	}
 	return
 }
@@ -227,6 +231,10 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 			nodeType = InlineCodeNode
 		case lexer.DoubleTildeToken:
 			nodeType = StrikethroughNode
+		case lexer.LinkHeadToken:
+			nodeType = LinkNode
+		case lexer.ImageHeadToken:
+			nodeType = ImageNode
 		default:
 			nodeType = TextNode
 		}
@@ -240,6 +248,26 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 			current = &node
 			node.Type = TextNode
 			node.Value = (*tokens)[i].Value
+		case lexer.LinkHeadToken:
+			fallthrough
+		case lexer.ImageHeadToken:
+			if i+2 <= end &&
+				(*tokens)[i+1].Type == lexer.TextToken &&
+				(*tokens)[i+2].Type == lexer.LinkBodyToken {
+				current.Type = getNodeTypeBySymToken((*tokens)[i])
+				current.Value = (*tokens)[i+2].Value
+				current.Children = append(current.Children, &Node{
+					Type:     TextNode,
+					Value:    (*tokens)[i+1].Value,
+					Children: nil,
+				})
+				i += 3
+			} else {
+				// Not paired, fallback to text token and rerun this loop
+				(*tokens)[i].Type = lexer.TextToken
+				i--
+				continue
+			}
 		case lexer.DoubleStarToken:
 			fallthrough
 		case lexer.DoubleUnderscoreToken:
@@ -264,6 +292,11 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 				// Don't forget to update i
 				i = pos
 			}
+		default:
+			// Fallback to text token.
+			(*tokens)[i].Type = lexer.TextToken
+			i--
+			continue
 		}
 		root.Children = append(root.Children, current)
 	}
