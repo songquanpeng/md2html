@@ -62,12 +62,27 @@ func (node Node) String() (str string) {
 		fallthrough
 	case LinkNode:
 		str += fmt.Sprintf(": %s", string(node.Value))
+	case ListNode:
+		str += ": "
+		switch int(node.Value[0]) {
+		case 0:
+			str += "Unordered List"
+		case 1:
+			str += "Ordered List"
+		case 2:
+			str += "Uncompleted Task"
+		case 3:
+			str += "Completed Task"
+		}
+		str += fmt.Sprintf(" (level %d)", int(node.Value[1]))
 	}
 	return
 }
 
+// If you add any global variables, don't forget to progress them in func Parse(markdown string)!
 var tokenBuffer []lexer.Token
 var pos = 0
+var tabCounter = 0
 
 func getToken() (token lexer.Token) {
 	if pos == len(tokenBuffer) {
@@ -95,6 +110,13 @@ func restoreToken() {
 	}
 }
 
+func nextTokenIs(tokenType lexer.TokenType) (yes bool) {
+	token := getToken()
+	yes = token.Type == tokenType
+	restoreToken()
+	return
+}
+
 func PrintAST(root *Node) {
 	tree := gotree.New("Root")
 	printASTHelper(root, &tree)
@@ -111,6 +133,9 @@ func printASTHelper(astNode *Node, treeNode *gotree.Tree) {
 }
 
 func Parse(markdown string) (root *Node) {
+	tokenBuffer = nil
+	pos = 0
+	tabCounter = 0
 	lexer.Tokenize(markdown)
 	root = parseArticle()
 	return
@@ -118,6 +143,7 @@ func Parse(markdown string) (root *Node) {
 
 func parseArticle() (root *Node) {
 	root = parseSectionList()
+	root.Type = ArticleNode
 	return
 }
 
@@ -147,14 +173,11 @@ func parseSectionList() (root *Node) {
 			current = parseQuote()
 		case lexer.NewlineToken:
 			_ = getToken()
-			token = getToken()
-			restoreToken()
+			tabCounter = 0
 			continue
 		case lexer.TabToken:
-			// TODO: process the tab token.
+			tabCounter++
 			_ = getToken()
-			token = getToken()
-			restoreToken()
 			continue
 		case lexer.EofToken:
 			return
@@ -312,37 +335,6 @@ func constructRichTextNode(start, end int, tokens *[]lexer.Token, nodeType NodeT
 	return
 }
 
-// If the next token is not a valid text token, this function will return an empty one.
-func parseText() (root *Node) {
-	node := Node{}
-	root = &node
-	root.Type = TextNode
-	token := getToken()
-	if token.Type != lexer.TextToken {
-		restoreToken()
-	} else {
-		root.Value = token.Value
-	}
-	return
-}
-
-func parseLink() (root *Node) {
-	node := Node{}
-	root = &node
-	return
-}
-
-func parseImage() (root *Node) {
-	token := getToken()
-	if token.Type != lexer.ImageHeadToken {
-		log.Println("Error: not a image head token!")
-	}
-	node := Node{}
-	root = &node
-	// TODO
-	return
-}
-
 func parseQuote() (root *Node) {
 	token := getToken()
 	if token.Type != lexer.QuoteToken {
@@ -364,7 +356,23 @@ func parseList() (root *Node) {
 	node := Node{}
 	root = &node
 	root.Type = ListNode
-	root.Value = []rune(lexer.TokenTypeName[token.Type])
+	listType := 0
+	switch token.Type {
+	case lexer.UnorderedListToken:
+		listType = 0
+	case lexer.OrderedListToken:
+		listType = 1
+	case lexer.UncompletedTaskToken:
+		listType = 2
+	case lexer.CompletedTaskToken:
+		listType = 3
+	default:
+		log.Println("Warning: unexpected token detected when processing list.")
+	}
+	listLevel := tabCounter
+	tabCounter = 0
+	root.Value = append(root.Value, rune(listType), rune(listLevel))
+	// The first child of a list node is its content.
 	root.Children = append(root.Children, parseContent())
 	return
 }

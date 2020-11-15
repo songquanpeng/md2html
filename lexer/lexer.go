@@ -152,7 +152,7 @@ func nextToken() (textToken, otherToken Token) {
 			return
 		}
 		c := input[pos]
-		if len(textToken.Value) == 0 && lastTokenType == NewlineToken {
+		if len(textToken.Value) == 0 && (lastTokenType == NewlineToken || lastTokenType == TabToken) {
 			switch c {
 			case '#':
 				n := countSymbol(c)
@@ -172,6 +172,8 @@ func nextToken() (textToken, otherToken Token) {
 				pos++
 				return
 			case '-':
+				fallthrough
+			case '+':
 				fallthrough
 			case '*':
 				if isSpaceBehind() {
@@ -303,6 +305,10 @@ func nextToken() (textToken, otherToken Token) {
 			}
 		case '\n':
 			otherToken.Type = NewlineToken
+			pos++
+			return
+		case '\t':
+			otherToken.Type = TabToken
 			pos++
 			return
 		}
