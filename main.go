@@ -4,13 +4,19 @@ import (
 	"io/ioutil"
 	"log"
 	"md2html/parser"
+	"os"
 )
 
 func main() {
-	markdown, err := ioutil.ReadFile("./test/test.md")
-	if err != nil {
-		log.Fatal(err)
+	for _, file := range os.Args[1:] {
+		markdown, err := ioutil.ReadFile(file)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Converting file %q.", file)
+		root := parser.Parse(string(markdown))
+		parser.PrintAST(root)
+
+		log.Printf("Converted file saved at %q.", file)
 	}
-	root := parser.Parse(string(markdown))
-	parser.PrintAST(root)
 }

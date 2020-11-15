@@ -5,8 +5,10 @@
 
 okay
 
-[description](link here!)
-![description](link here!)
+Hi，__这是**你**没玩过的全新版本__，版本号 `v0.1.0`。
+
+首先是一个链接：[链接文字在此！](link here!)，紧接着有一张图片：
+![图片的替代文本](image link here!)
 
 ## 中文可以吗
 

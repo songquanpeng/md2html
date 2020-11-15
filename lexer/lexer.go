@@ -67,6 +67,9 @@ var tokenQueue []Token
 
 func Tokenize(markdown string) {
 	input = []rune(markdown)
+	pos = 0
+	lastTokenType = NewlineToken
+	tokenQueue = nil
 }
 
 func nextIsSameTo(c rune) bool {
@@ -193,7 +196,7 @@ func nextToken() (textToken, otherToken Token) {
 					if nextIsSameTo(c) {
 						pos++
 						if nextIsSameTo(c) {
-							pos++
+							pos += 2
 							otherToken.Type = DividingLineToken
 							return
 						}

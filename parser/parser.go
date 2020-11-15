@@ -51,8 +51,15 @@ type Node struct {
 	Children []*Node
 }
 
-func (node Node) String() string {
-	return NodeTypeName[node.Type]
+func (node Node) String() (str string) {
+	str += NodeTypeName[node.Type]
+	switch node.Type {
+	case TextNode:
+		str += fmt.Sprintf(": %q", string(node.Value))
+	case TitleNode:
+		str += fmt.Sprintf(": %d", node.Value[0])
+	}
+	return
 }
 
 var tokenBuffer []lexer.Token
@@ -73,13 +80,10 @@ func getToken() (token lexer.Token) {
 		tokenBuffer = tokenBuffer[1:]
 		pos--
 	}
-	//fmt.Printf("getToken() called with token ")
-	//lexer.PrintToken(token)
 	return
 }
 
 func restoreToken() {
-	//fmt.Printf("restoreToken() called.\n")
 	if pos == 0 {
 		log.Println("Warning: nothing to restore!")
 	} else {
@@ -120,8 +124,6 @@ func parseSectionList() (root *Node) {
 		token := getToken()
 		restoreToken()
 		current := &Node{}
-		//fmt.Printf("for loop start, current token: ")
-		//lexer.PrintToken(token)
 		switch token.Type {
 		case lexer.TitleToken:
 			current = parseTitle()
@@ -200,7 +202,7 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 		log.Println("Warning: content node is blank!")
 		return
 	}
-	// return -1 if not found, do not check the start point
+	// return -1 if not found, notice it doesn't not check the start point
 	findThisTypeToken := func(t lexer.TokenType, start int) (pos int) {
 		for pos = start + 1; pos < len(*tokens); pos++ {
 			if (*tokens)[pos].Type == t {
@@ -253,7 +255,7 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 			if pos == -1 {
 				// Not paired, change its type.
 				(*tokens)[i].Type = lexer.TextToken
-				// And rerun this cycle.
+				// And rerun this loop.
 				i--
 				continue
 			} else {
@@ -261,7 +263,6 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 				current = constructRichTextNode(i, pos, tokens, getNodeTypeBySymToken((*tokens)[i]))
 				// Don't forget to update i
 				i = pos
-				continue
 			}
 		}
 		root.Children = append(root.Children, current)
@@ -273,7 +274,8 @@ func constructRichTextNode(start, end int, tokens *[]lexer.Token, nodeType NodeT
 	node := Node{}
 	root = &node
 	root.Type = nodeType
-	root.Children[0] = constructContentNode(start+1, end-1, tokens)
+	subNode := constructContentNode(start+1, end-1, tokens)
+	root.Children = append(root.Children, subNode)
 	return
 }
 

@@ -28,3 +28,24 @@ func TestTokenizeHeader(t *testing.T) {
 		t.Errorf("There should be %d tokens", expectedTokenNum)
 	}
 }
+
+const markdown2 = `
+---
+hi
+---`
+
+func TestTokenizeDividingLine(t *testing.T) {
+	Tokenize(markdown2)
+	n := 0
+	for ; true; n++ {
+		token := NextToken()
+		//fmt.Printf("%d: <%s, %q>\n", n, TokenTypeName[token.Type], string(token.Value))
+		if token.Type == EofToken {
+			break
+		}
+	}
+	expectedTokenNum := 6
+	if n != expectedTokenNum {
+		t.Errorf("There should be %d tokens", expectedTokenNum)
+	}
+}
