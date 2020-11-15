@@ -274,7 +274,10 @@ func parseDividingLine() (root *Node) {
 func parseContent() (root *Node) {
 	// First we should retrieve all the tokens this content node need.
 	var tokens []lexer.Token
-	for token := getToken(); token.Type != lexer.NewlineToken && token.Type != lexer.EofToken; token = getToken() {
+	for token := getToken(); token.Type != lexer.EofToken; token = getToken() {
+		if token.Type == lexer.NewlineToken && (!nextTokenIs(lexer.TextToken)) {
+			break
+		}
 		tokens = append(tokens, token)
 	}
 	return constructContentNode(0, len(tokens)-1, &tokens)
@@ -403,6 +406,9 @@ func parseQuote() (root *Node) {
 	root = &node
 	root.Type = QuoteNode
 	root.Children = append(root.Children, parseContent())
+	for nextTokenIs(lexer.QuoteToken) {
+		root.Children = append(root.Children, parseContent())
+	}
 	return
 }
 

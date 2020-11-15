@@ -32,6 +32,9 @@ func ConvertFile(path string) {
 
 func main() {
 	var files []string
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, "./")
+	}
 	for _, path := range os.Args[1:] {
 		fi, err := os.Stat(path)
 		if err != nil {

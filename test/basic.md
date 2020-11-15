@@ -4,7 +4,8 @@
 
 ---
 
-This is plain text. Not next line.
+This is plain text. 
+Not next line.
 
 Next line.
 
@@ -41,7 +42,7 @@ http://github.com - automatic!
 
 As Kanye West said:
 
-> We're living the future so
+> We're living the future so 
 > the present is our past.
 
 ```javascript

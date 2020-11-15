@@ -95,7 +95,10 @@ func processListNode(node *parser.Node) (html string) {
 }
 
 func processQuoteNode(node *parser.Node) (html string) {
-	content := processContentNode(node.Children[0])
+	content := ""
+	for _, child := range node.Children {
+		content += processContentNode(child)
+	}
 	html = fmt.Sprintf("<q>%s</q>\n", content)
 	return
 }
