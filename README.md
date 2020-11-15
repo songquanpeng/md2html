@@ -1,7 +1,7 @@
 # Markdown to HTML
 
 ## TODO
-- [x] Multi-level list.
+- [ ] Support list.
 - [ ] Add style for code block.
 - [ ] Support code block without triple backticks.
 

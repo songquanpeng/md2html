@@ -88,3 +88,10 @@ Type 1 end.
 func TestTokenizeCodeBlock(t *testing.T) {
 	checkTokenNumber(t, markdown5, 22, false)
 }
+
+const markdown6 = `
+`
+
+func TestTokenizeRealArticle(t *testing.T) {
+	checkTokenNumber(t, markdown6, 1, true)
+}

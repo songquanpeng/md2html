@@ -343,7 +343,7 @@ func constructContentNode(start, end int, tokens *[]lexer.Token) (root *Node) {
 					Value:    (*tokens)[i+1].Value,
 					Children: nil,
 				})
-				i += 3
+				i += 2
 			} else {
 				// Not paired, fallback to text token and rerun this loop
 				(*tokens)[i].Type = lexer.TextToken
