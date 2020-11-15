@@ -73,3 +73,18 @@ const markdown4 = `
 func TestTokenizeList(t *testing.T) {
 	checkTokenNumber(t, markdown4, 55, false)
 }
+
+const markdown5 = `
+## Type 1
+    function fancyAlert(arg) {
+      if(arg) {
+        $.facebox({div:'#foo'})
+      }
+    }
+
+Type 1 end.
+`
+
+func TestTokenizeCodeBlock(t *testing.T) {
+	checkTokenNumber(t, markdown5, 22, false)
+}

@@ -1,14 +1,4 @@
 * Item 1
-  * Item 2a
-  * Item 2b
-
-1. Item 1
-1. Item 2
-1. Item 3
-   1. Item 3a
-   1. Item 3b
-
-* Item 1
 * Item 2
 	* Item 2a
 	* Item 2b 
@@ -16,9 +6,15 @@
 		* Item 2bb
 			* Item 2bba
 			* Item 2bbb
+	* Item 2c
+	* Item 2d
+		* Item 2da
+		* Item 2db
+			* Item 2dba
+			* Item 2dbb
 
 1. Item 1
 1. Item 2 
 1. Item 3
-    1. Item 3a
+	1. Item 3a
 	1. Item 3b

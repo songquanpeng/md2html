@@ -138,7 +138,63 @@ func Parse(markdown string) (root *Node) {
 	tabCounter = 0
 	lexer.Tokenize(markdown)
 	root = parseArticle()
+	preprocessAST(root)
 	return
+}
+
+func preprocessAST(root *Node) {
+	// Organize the list items as a tree, before that they are flatted.
+	var newChildren []*Node
+	for i := 0; i < len(root.Children); i++ {
+		newChildren = append(newChildren, root.Children[i])
+		if root.Children[i].Type == ListNode {
+			start := i
+			level := int(root.Children[i].Value[1])
+			end := i
+			for j := i + 1; j < len(root.Children); j++ {
+				if root.Children[j].Type == ListNode {
+					if int(root.Children[j].Value[1]) <= level {
+						end = j
+						break
+					} else {
+						end = j + 1
+					}
+				}
+
+			}
+			if end > start+1 {
+				target := root.Children[start:end]
+				processListNode(target)
+				i = end - 1
+			}
+		}
+	}
+	root.Children = newChildren
+}
+
+func processListNode(nodes []*Node) {
+	// The first node is the root node.
+	root := nodes[0]
+	for i := 1; i < len(nodes); i++ {
+		root.Children = append(root.Children, nodes[i])
+		noMoreChild := true
+		level := int(nodes[i].Value[1])
+		for j := i + 1; j < len(nodes); j++ {
+			if int(nodes[j].Value[1]) <= level {
+				// Current one is a new child.
+				noMoreChild = false
+				// Firstly we should complete the previous child.
+				processListNode(nodes[i:j])
+				// Then we update i.
+				i = j - 1
+				break
+			}
+		}
+		if noMoreChild {
+			processListNode(nodes[i:])
+			break
+		}
+	}
 }
 
 func parseArticle() (root *Node) {
