@@ -4,6 +4,7 @@
 - [x] Support list.
 - [ ] Support table.
 - [ ] Support full functional quote.
+- [x] Use my own style.
 - [ ] Add style for code block.
 - [ ] Support code block without triple backticks.
 

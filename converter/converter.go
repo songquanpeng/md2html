@@ -7,19 +7,6 @@ import (
 	"strings"
 )
 
-var htmlTemplate = `<html>
-<head>
-<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/mvp.css@1.6.2/mvp.min.css'>
-<style>
-.article {
-    margin: auto;
-max-width: 750px;
-}
-</style>
-</head>
-<body style="">%s</body>
-</html>`
-
 func Convert(markdown string, fullPage bool) (html string) {
 	ast := parser.Parse(markdown)
 	if os.Getenv("MODE") == "debug" {
@@ -27,7 +14,7 @@ func Convert(markdown string, fullPage bool) (html string) {
 	}
 	html = processArticleNode(ast)
 	if fullPage {
-		html = fmt.Sprintf(htmlTemplate, html)
+		html = fmt.Sprintf(HtmlTemplate, Style, html)
 	}
 	return html
 }
