@@ -268,7 +268,7 @@ func parseSectionList() (root *Node) {
 		case lexer.EofToken:
 			return
 		default:
-			current = parseContent()
+			current = parseContent(false)
 		}
 		root.Children = append(root.Children, current)
 	}
@@ -283,7 +283,7 @@ func parseTitle() (root *Node) {
 	root = &node
 	root.Type = TitleNode
 	root.Value = token.Value
-	root.Children = append(root.Children, parseContent())
+	root.Children = append(root.Children, parseContent(true))
 	return
 }
 
@@ -298,10 +298,13 @@ func parseDividingLine() (root *Node) {
 	return
 }
 
-func parseContent() (root *Node) {
+func parseContent(singleLine bool) (root *Node) {
 	// First we should retrieve all the tokens this content node need.
 	var tokens []lexer.Token
 	for token := getToken(); token.Type != lexer.EofToken; token = getToken() {
+		if singleLine && token.Type == lexer.NewlineToken {
+			break
+		}
 		if token.Type == lexer.NewlineToken && (!nextTokenIs(lexer.TextToken)) {
 			break
 		}
@@ -432,9 +435,9 @@ func parseQuote() (root *Node) {
 	node := Node{}
 	root = &node
 	root.Type = QuoteNode
-	root.Children = append(root.Children, parseContent())
+	root.Children = append(root.Children, parseContent(true))
 	for nextTokenIs(lexer.QuoteToken) {
-		root.Children = append(root.Children, parseContent())
+		root.Children = append(root.Children, parseContent(true))
 	}
 	return
 }
@@ -465,7 +468,7 @@ func parseList() (root *Node) {
 	tabCounter = 0
 	root.Value = append(root.Value, rune(listType), rune(listLevel))
 	// The first child of a list node is its content.
-	root.Children = append(root.Children, parseContent())
+	root.Children = append(root.Children, parseContent(false))
 	return
 }
 

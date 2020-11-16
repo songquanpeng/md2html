@@ -2,6 +2,8 @@
 
 ## TODO
 - [x] Support list.
+- [ ] Support table.
+- [ ] Support full functional quote.
 - [ ] Add style for code block.
 - [ ] Support code block without triple backticks.
 

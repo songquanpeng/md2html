@@ -3,6 +3,7 @@ package converter
 import (
 	"fmt"
 	"md2html/parser"
+	"os"
 	"strings"
 )
 
@@ -21,7 +22,9 @@ max-width: 750px;
 
 func Convert(markdown string, fullPage bool) (html string) {
 	ast := parser.Parse(markdown)
-	//parser.PrintAST(ast)
+	if os.Getenv("MODE") == "debug" {
+		parser.PrintAST(ast)
+	}
 	html = processArticleNode(ast)
 	if fullPage {
 		html = fmt.Sprintf(htmlTemplate, html)
